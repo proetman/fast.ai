@@ -38,15 +38,15 @@
 
 # ### Constants and Env variables
 
-# In[16]:
+# In[3]:
 
 
-g_profile = 'us-east'
+g_profile = 'us-east'            # profiles: au | us-east | eu
 g_instance_type = 'm4.large'
 ami = 'ami-31ecfb26'             # only in us-east-1, virginia
 
 
-# In[17]:
+# In[4]:
 
 
 # Fixed constansts
@@ -54,7 +54,7 @@ g_name = 'fast-ai'
 g_cidr = '0.0.0/0'
 
 
-# In[18]:
+# In[5]:
 
 
 # Import libraries
@@ -63,10 +63,10 @@ import boto3
 
 # ## Functions
 
-# In[13]:
+# In[42]:
 
 
-def create_vpc(p_ec2_client):
+def create_vpc(p_ec2_resource):
     """
     export vpcId=$(aws ec2 create-vpc --cidr-block 10.0.0.0/28 --query 'Vpc.VpcId' --output text)
     aws ec2 create-tags --resources $vpcId --tags --tags Key=Name,Value=$name
@@ -76,6 +76,23 @@ def create_vpc(p_ec2_client):
     """
     # Find out if a VPC already exists for this range
 
+    
+    filters = [{"Name": "tag:Name", "Values": [g_name]}]
+    filters = [{"Name": "tag:Name", "Values": '*'}]
+    l_vpc = list(p_ec2_resource.vpcs.filter(Filters=filters))
+    
+    if len(l_vpc) == 0:
+        print('There are no VPC for tag: {}, so will create one!'.format(g_name))
+        l_vpc_id = p_ec2_resource.create_vpc(CidrBlock='10.0.0.0/28')
+        l_vpc_id.create_tags(Tags=[{"Key": "Name", "Value": g_name}])
+        print('Creating...please wait')
+        l_vpc_id.wait_until_available()
+        print('Complete')
+        print(l_vpc_id)
+    else:
+        print('There is a VPC for tag: {} already. Doing nothing.')
+        
+
 
     
     
@@ -83,40 +100,59 @@ def create_vpc(p_ec2_client):
 
 # ## Main
 
-# In[34]:
+# In[69]:
 
 
-session = boto3.Session(profile_name = g_profile)
+l_session = boto3.Session(profile_name = g_profile)
+l_region = l_session.region_name
 
-ec2 = boto3.resource('ec2')
-my_region = session.region_name
+print('Current region: {}'.format(l_region))
 
-print('Current region: {}'.format(my_region))
+ec2_resource = l_session.resource('ec2')   
+ec2_client   = l_session.client('ec2')     # lowest level
 
-filters = [{'Name':'tag:Name', 'Values':[g_name]}]
+vpc_to_delete = 'vpc-7577f10d'
 
-print('List of available VPC')
-list(ec2.vpcs.filter(Filters=filters))
-print('END List of available VPC')
+# l_vpc = ec2_resource.Vpc(id = vpc_to_delete)
+# print(l_vpc)
+# l_vpc.delete()
+
+filters = [{'Name': "tag:Name", 'Values':['fast*']}]
+l_vpc = list(ec2_resource.vpcs.filter(Filters=filters))
+print('len l_vpc = {}'.format(len(l_vpc)))
+for vpc in l_vpc:
+    response = client.describe_vpcs(VpcIds=[vpc.id,])
+    print(json.dumps(response, sort_keys=True, indent=4))
+# print(l_vpc)
+
+# vpc_id = ec2_resource.Vpc(vpc)
+# vpc_id.id
+# print('vpc id = {}'.format(vpc_id))
+# print(dir(ec2_resource))
+# ec2_resource.Vpc.
 
 
-ec2_client = session.client('ec2')
+
+# ec2_resource.create_vpc
+# ec2_client.create_vpc
+
+# reate_vpc(ec2_resource)
 
 # List all instances for this client
-response = ec2_client.describe_instances()
-print(response)
+# response = ec2_client.describe_instances()
+# print(response)
 
 
     
 
 
-# In[38]:
+# In[13]:
 
 
 get_ipython().run_line_magic('pinfo', 'ec2_client.modify_vpc_attribute')
 
 
-# In[45]:
+# In[14]:
 
 
 my_vpc = ec2_client.create_vpc(CidrBlock = '10.0.0.0/28')
@@ -127,7 +163,7 @@ my_vpc['Vpc']['VpcId']
 # list(ec2_boto3.vpcs)
 
 
-# In[46]:
+# In[16]:
 
 
 ec2_client.modify_vpc_attribute(VpcId=my_vpc['Vpc']['VpcId'], EnableDnsSupport={'Value':True})
