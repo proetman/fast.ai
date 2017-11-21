@@ -100,7 +100,7 @@ def create_vpc(p_ec2_resource):
 
 # ## Main
 
-# In[69]:
+# In[103]:
 
 
 l_session = boto3.Session(profile_name = g_profile)
@@ -117,8 +117,10 @@ vpc_to_delete = 'vpc-7577f10d'
 # print(l_vpc)
 # l_vpc.delete()
 
-filters = [{'Name': "tag:Name", 'Values':['fast*']}]
-l_vpc = list(ec2_resource.vpcs.filter(Filters=filters))
+myfilters = [{'Name': 'tag:Name', 'Values':['fast-ai']}]
+myfilters = [{'Name': 'VpcId', 'Values':['*']}]
+print(myfilters)
+l_vpc = list(ec2_resource.vpcs.filter(Filters=myfilters))
 print('len l_vpc = {}'.format(len(l_vpc)))
 for vpc in l_vpc:
     response = client.describe_vpcs(VpcIds=[vpc.id,])
@@ -146,13 +148,27 @@ for vpc in l_vpc:
     
 
 
-# In[13]:
+# In[111]:
 
 
-get_ipython().run_line_magic('pinfo', 'ec2_client.modify_vpc_attribute')
+for r in ec2_resource.meta.client.describe_vpcs()[ 'Vpcs']:
+    curr_default = r['IsDefault']
+    curr_id = r['VpcId']
+    if curr_default:
+        print('Default, not touching')
+    else:
+        print('delete {}'.format(curr_id))
+        l_vpc = ec2_resource.Vpc(id = curr_id)
+        print(l_vpc.)
+        if l_vpc.tags is not None:
+            for tag in l_vpc.tags:
+                print('{} {}'.format(tag['Key'], tag['value']))
+        # print(l_vpc)
+        # l_vpc.delete()
+    # print(r)
 
 
-# In[14]:
+# In[107]:
 
 
 my_vpc = ec2_client.create_vpc(CidrBlock = '10.0.0.0/28')
